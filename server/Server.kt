@@ -1,5 +1,8 @@
 package jsondatabase.server
 
+import jsondatabase.utils.RequestType
+import jsondatabase.utils.SocketConst
+import jsondatabase.utils.Utils.Companion.getData
 import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.net.InetAddress
@@ -10,21 +13,51 @@ class Server {
 
     fun start() {
         println("Server started!")
-        val accept = serverSocket.accept()
-        val input = DataInputStream(accept.getInputStream())
-        val output = DataOutputStream(accept.getOutputStream())
-
-        val data = input.readUTF()
-        println("Received: $data")
-
-        val recordNumber = data.split("#")[1].trim().toLong()
-
-        val message = "A record # $recordNumber was sent!"
-        output.writeUTF(message)
-        println("Sent: A record # $recordNumber was sent!")
+        while (true) {
+            val accept = serverSocket.accept()
+            val input = DataInputStream(accept.getInputStream())
+            val output = DataOutputStream(accept.getOutputStream())
+            val data = input.readUTF()
+            val (requestType, id, string) = getData(data)
+            when (requestType) {
+                RequestType.GET -> get(id, output)
+                RequestType.SET -> set(id, string, output)
+                RequestType.DELETE -> delete(id, output)
+                RequestType.EXIT -> exit(output)
+            }
+        }
     }
 
-    fun stop() {
+    private fun get(id: Long, output: DataOutputStream) {
+        val cellById = database.getCellById(id)
+        if (cellById == null || cellById.string.isEmpty())
+            output.writeUTF("ERROR")
+        else
+            output.writeUTF(cellById.string)
+    }
+
+    private fun set(id: Long, text: String, output: DataOutputStream) {
+        val cellById = database.getCellById(id)
+        if (cellById == null)
+            output.writeUTF("ERROR")
+        else {
+            cellById.string = text
+            output.writeUTF("OK")
+        }
+    }
+
+    private fun delete(id: Long, output: DataOutputStream) {
+        val cellById = database.getCellById(id)
+        if (cellById == null)
+            output.writeUTF("ERROR")
+        else {
+            cellById.string = ""
+            output.writeUTF("OK")
+        }
+    }
+
+    private fun exit(output: DataOutputStream) {
+        output.writeUTF("OK")
         serverSocket.close()
     }
 

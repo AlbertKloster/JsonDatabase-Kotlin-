@@ -1,4 +1,6 @@
-package jsondatabase.server
+package jsondatabase.db
+
+const val SIZE = 1000
 
 class DataBase private constructor() {
     private val cells = mutableListOf<Cell>()
@@ -13,7 +15,7 @@ class DataBase private constructor() {
     }
 
     init {
-        for (i in 1..100) {
+        for (i in 1..SIZE) {
             cells.add(Cell(i.toLong(), ""))
         }
     }

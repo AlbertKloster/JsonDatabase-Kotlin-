@@ -1,7 +1,6 @@
 package jsondatabase.client
 
-fun main() {
+fun main(args: Array<String>) {
     val client = Client()
-    client.start()
-    client.stop()
+    client.start(args)
 }

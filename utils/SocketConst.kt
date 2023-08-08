@@ -1,4 +1,4 @@
-package jsondatabase.server
+package jsondatabase.utils
 
 object SocketConst {
     val port = 1234
