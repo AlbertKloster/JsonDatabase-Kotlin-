@@ -1,4 +1,3 @@
 package jsondatabase.utils
 
-data class Data(val requestType: RequestType, val id: Long = 0, val string: String = "")
-
+data class Data(val type: String, val key: String = "", val value: String = "")

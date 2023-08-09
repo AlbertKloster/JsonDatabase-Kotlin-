@@ -1,8 +1,12 @@
 package jsondatabase.server
 
+import jsondatabase.dto.*
 import jsondatabase.utils.RequestType
 import jsondatabase.utils.SocketConst
 import jsondatabase.utils.Utils.Companion.getData
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.net.InetAddress
@@ -17,47 +21,41 @@ class Server {
             val accept = serverSocket.accept()
             val input = DataInputStream(accept.getInputStream())
             val output = DataOutputStream(accept.getOutputStream())
-            val data = input.readUTF()
-            val (requestType, id, string) = getData(data)
-            when (requestType) {
-                RequestType.GET -> get(id, output)
-                RequestType.SET -> set(id, string, output)
-                RequestType.DELETE -> delete(id, output)
-                RequestType.EXIT -> exit(output)
+            val sendBasic = Json.decodeFromString<SendBasic>(input.readUTF())
+            val (type, key, value) = getData(sendBasic)
+            when (type) {
+                RequestType.GET.string -> get(key, output)
+                RequestType.SET.string -> set(key, value, output)
+                RequestType.DELETE.string -> delete(key, output)
+                RequestType.EXIT.string -> exit(output)
             }
         }
     }
 
-    private fun get(id: Long, output: DataOutputStream) {
-        val cellById = database.getCellById(id)
-        if (cellById == null || cellById.string.isEmpty())
-            output.writeUTF("ERROR")
+    private fun get(key: String, output: DataOutputStream) {
+        val valueByKey = database.getValueByKey(key)
+        if (valueByKey.isNullOrEmpty())
+            output.writeUTF(Json.encodeToString(Error("ERROR", "No such key")))
         else
-            output.writeUTF(cellById.string)
+            output.writeUTF(Json.encodeToString(ResponseGet("OK", valueByKey)))
     }
 
-    private fun set(id: Long, text: String, output: DataOutputStream) {
-        val cellById = database.getCellById(id)
-        if (cellById == null)
-            output.writeUTF("ERROR")
-        else {
-            cellById.string = text
-            output.writeUTF("OK")
-        }
+    private fun set(key: String, value: String, output: DataOutputStream) {
+        database.setValueByKey(key, value)
+        output.writeUTF(Json.encodeToString(ResponseSet("OK")))
     }
 
-    private fun delete(id: Long, output: DataOutputStream) {
-        val cellById = database.getCellById(id)
-        if (cellById == null)
-            output.writeUTF("ERROR")
-        else {
-            cellById.string = ""
-            output.writeUTF("OK")
+    private fun delete(key: String, output: DataOutputStream) {
+        if (database.containsKey(key)) {
+            database.remove(key)
+            output.writeUTF(Json.encodeToString(ResponseDelete("OK")))
+        } else {
+            output.writeUTF(Json.encodeToString(Error("ERROR", "No such key")))
         }
     }
 
     private fun exit(output: DataOutputStream) {
-        output.writeUTF("OK")
+        output.writeUTF(Json.encodeToString(ResponseExit("OK")))
         serverSocket.close()
     }
 

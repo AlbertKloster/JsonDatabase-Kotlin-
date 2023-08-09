@@ -1,9 +1,7 @@
 package jsondatabase.db
 
-const val SIZE = 1000
-
 class DataBase private constructor() {
-    private val cells = mutableListOf<Cell>()
+    private val cells = mutableMapOf<String, String>()
     companion object {
         @Volatile
         private var instance: DataBase? = null
@@ -14,14 +12,14 @@ class DataBase private constructor() {
             }
     }
 
-    init {
-        for (i in 1..SIZE) {
-            cells.add(Cell(i.toLong(), ""))
-        }
+    fun setValueByKey(key: String, value: String) {
+        cells[key] = value
     }
 
-    fun getCellById(id: Long): Cell? {
-        return cells.find { it.id == id }
-    }
+    fun getValueByKey(key: String) = cells[key]
+
+    fun containsKey(key: String) = cells.containsKey(key)
+
+    fun remove(key: String) = cells.remove(key)
 
 }

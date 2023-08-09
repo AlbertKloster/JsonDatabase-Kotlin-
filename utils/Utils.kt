@@ -1,38 +1,33 @@
 package jsondatabase.utils
 
-import java.lang.RuntimeException
+import jsondatabase.dto.SendBasic
 
 class Utils {
     companion object {
-        fun getData(args: Array<String>) = Data(getRequestType(args), getId(args), getMessage(args))
+        fun getData(args: Array<String>) = Data(getType(args), getKey(args), getValue(args))
 
-        fun getData(string: String): Data {
-            val split = string.split(Regex(" +"), 3)
-            val tags = listOf("-t", "-i", "-m")
-            val args = mutableListOf<String>()
-            for (i in split.indices) {
-                args.add(tags[i])
-                args.add(split[i])
-            }
-            return Data(getRequestType(args.toTypedArray()), getId(args.toTypedArray()), getMessage(args.toTypedArray()))
-        }
+        fun getData(sendBasic: SendBasic) =
+            Data(getType(sendBasic.type), sendBasic.key, sendBasic.value)
 
-        private fun getRequestType(args: Array<String>): RequestType {
+        private fun getType(type: String) = RequestType.getRequestType(type).string
+
+
+        private fun getType(args: Array<String>): String {
             val requestTypeIndex = args.indexOf("-t")
             if (requestTypeIndex > -1 && requestTypeIndex + 1 <= args.size)
-                return RequestType.getRequestType(args[requestTypeIndex + 1])
+                return RequestType.getRequestType(args[requestTypeIndex + 1]).string
             throw RuntimeException("ERROR")
         }
 
-        private fun getId(args: Array<String>): Long {
-            val requestTypeIndex = args.indexOf("-i")
+        private fun getKey(args: Array<String>): String {
+            val requestTypeIndex = args.indexOf("-k")
             if (requestTypeIndex > -1 && requestTypeIndex + 1 <= args.size)
-                return args[requestTypeIndex + 1].toLong()
-            return 0
+                return args[requestTypeIndex + 1]
+            return ""
         }
 
-        private fun getMessage(args: Array<String>): String {
-            val requestTypeIndex = args.indexOf("-m")
+        private fun getValue(args: Array<String>): String {
+            val requestTypeIndex = args.indexOf("-v")
             if (requestTypeIndex > -1 && requestTypeIndex + 1 <= args.size)
                 return args[requestTypeIndex + 1]
             return ""

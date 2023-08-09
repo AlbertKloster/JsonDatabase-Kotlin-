@@ -1,7 +1,14 @@
 package jsondatabase.client
 
+import jsondatabase.dto.SendDelete
+import jsondatabase.dto.SendExit
+import jsondatabase.dto.SendGet
+import jsondatabase.dto.SendSet
+import jsondatabase.utils.RequestType
 import jsondatabase.utils.SocketConst
 import jsondatabase.utils.Utils.Companion.getData
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.net.InetAddress
@@ -15,17 +22,18 @@ class Client {
         val input = DataInputStream(clientSocket.getInputStream())
         val output = DataOutputStream(clientSocket.getOutputStream())
         val data = getData(args)
-        val requestType = data.requestType
-        val id = data.id
-        val string = data.string
-        val request = if (id == 0L) requestType.string
-        else if (string.isEmpty()) requestType.string + " " + id
-        else requestType.string + " " + id + " " + string
+        val json = when (RequestType.getRequestType(data.type)) {
+            RequestType.GET -> Json.encodeToString(SendGet(data.type, data.key))
+            RequestType.SET -> Json.encodeToString(SendSet(data.type, data.key, data.value))
+            RequestType.DELETE -> Json.encodeToString(SendDelete(data.type, data.key))
+            RequestType.EXIT -> Json.encodeToString(SendExit(data.type))
+        }
 
-        output.writeUTF(request)
-        println("Sent: $request")
+        output.writeUTF(json)
+        println("Sent: $json")
         val response = input.readUTF()
         println("Received: $response")
+
         clientSocket.close()
 
     }
