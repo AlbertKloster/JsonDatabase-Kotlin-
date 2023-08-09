@@ -1,10 +1,24 @@
 package jsondatabase.utils
 
 import jsondatabase.dto.SendBasic
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.decodeFromString
+import java.io.File
 
 class Utils {
     companion object {
-        fun getData(args: Array<String>) = Data(getType(args), getKey(args), getValue(args))
+        private const val PATH = "\\client\\data\\"
+        fun getData(args: Array<String>): Data {
+            val inIndex = args.indexOf("-in")
+            return if (inIndex >= 0 && args.size > inIndex + 1)
+                loadData(args[inIndex + 1])
+            else
+                Data(getType(args), getKey(args), getValue(args))
+        }
+
+        private fun loadData(filename: String): Data {
+            return Json.decodeFromString<Data>(File(PATH + filename).readText())
+        }
 
         fun getData(sendBasic: SendBasic) =
             Data(getType(sendBasic.type), sendBasic.key, sendBasic.value)

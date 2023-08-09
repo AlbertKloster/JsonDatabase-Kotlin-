@@ -2,7 +2,7 @@ package jsondatabase.server
 
 import jsondatabase.db.DataBase
 
-val database = DataBase.getInstance()
+val database = DataBase()
 
 fun main() {
     val server = Server()

@@ -11,23 +11,26 @@ import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.net.InetAddress
 import java.net.ServerSocket
+import java.util.concurrent.Executors
 
 class Server {
     private val serverSocket = ServerSocket(SocketConst.port, 50, InetAddress.getByName(SocketConst.address))
-
+    private val executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors())
     fun start() {
         println("Server started!")
-        while (true) {
-            val accept = serverSocket.accept()
-            val input = DataInputStream(accept.getInputStream())
-            val output = DataOutputStream(accept.getOutputStream())
-            val sendBasic = Json.decodeFromString<SendBasic>(input.readUTF())
-            val (type, key, value) = getData(sendBasic)
-            when (type) {
-                RequestType.GET.string -> get(key, output)
-                RequestType.SET.string -> set(key, value, output)
-                RequestType.DELETE.string -> delete(key, output)
-                RequestType.EXIT.string -> exit(output)
+        executor.submit {
+            while (true) {
+                val accept = serverSocket.accept()
+                val input = DataInputStream(accept.getInputStream())
+                val output = DataOutputStream(accept.getOutputStream())
+                val sendBasic = Json.decodeFromString<SendBasic>(input.readUTF())
+                val (type, key, value) = getData(sendBasic)
+                when (type) {
+                    RequestType.GET.string -> get(key, output)
+                    RequestType.SET.string -> set(key, value, output)
+                    RequestType.DELETE.string -> delete(key, output)
+                    RequestType.EXIT.string -> exit(output)
+                }
             }
         }
     }
@@ -47,7 +50,7 @@ class Server {
 
     private fun delete(key: String, output: DataOutputStream) {
         if (database.containsKey(key)) {
-            database.remove(key)
+            database.removeByKey(key)
             output.writeUTF(Json.encodeToString(ResponseDelete("OK")))
         } else {
             output.writeUTF(Json.encodeToString(Error("ERROR", "No such key")))
@@ -56,6 +59,7 @@ class Server {
 
     private fun exit(output: DataOutputStream) {
         output.writeUTF(Json.encodeToString(ResponseExit("OK")))
+        executor.shutdown()
         serverSocket.close()
     }
 
