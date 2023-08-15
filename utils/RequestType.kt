@@ -14,7 +14,7 @@ enum class RequestType(val string: String) {
             for (requestType in RequestType.values()) {
                 if (requestType.string == input.lowercase()) return requestType
             }
-            throw RuntimeException("Wrong command $input")
+            throw RuntimeException("Wrong request type: $input")
         }
     }
 }

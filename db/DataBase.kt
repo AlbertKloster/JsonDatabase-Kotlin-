@@ -1,59 +1,57 @@
 package jsondatabase.db
 
+import jsondatabase.Constants
+import jsondatabase.utils.Parser
 import java.io.File
-import kotlinx.serialization.decodeFromString
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 import java.util.concurrent.locks.ReentrantReadWriteLock
 
 class DataBase {
-    private val fileDb = File("\\client\\data\\db.json")
-    private val cells = mutableListOf<Cell>()
+    private val fileDb = File(Constants.DB_PATH + "db.json")
+    private val cells = mutableMapOf<String, Any?>()
     private val readLock = ReentrantReadWriteLock().readLock()
     private val writeLock = ReentrantReadWriteLock().writeLock()
+    private val parser = Parser()
 
     init {
         readLock.lock()
-        if (fileDb.exists()) {
-            fileDb.forEachLine {
-                if (it.isNotBlank()) {
-                    try {
-                        cells.add(Json.decodeFromString(it))
-                    } catch (_: RuntimeException) {
-
-                    }
-                }
-            }
-        }
+        if (fileDb.exists())
+            cells.putAll(parser.jsonToMap(fileDb.readText()))
         readLock.unlock()
     }
 
-    fun setValueByKey(key: String, value: String) {
-        val cell = cells.find { it.key == key }
-        if (cell != null) cell.value = value
-        else cells.add(Cell(key, value))
+    fun setValueForKeys(keys: List<String>, value: Any) {
+        var obj: Any? = cells
+        for (i in 0 until keys.size - 1) {
+            obj = (obj as MutableMap<*, *>)[keys[i]]
+        }
+        (obj as MutableMap<String, Any>)[keys.last()] = value
         saveDb()
     }
 
-    fun getValueByKey(key: String) = getCellByKey(key)?.value
-
-    fun containsKey(key: String) = cells.any { it.key == key }
-
-    fun removeByKey(key: String) {
-        cells.remove(getCellByKey(key))
-        saveDb()
+    fun getValueForKeys(keys: Collection<String>): Any? {
+        var value: Any? = cells
+        for (key in keys) {
+            value = (value as Map<*, *>)[key]
+        }
+        return value
     }
 
-    private fun getCellByKey(key: String) = cells.find { it.key == key }
+    fun deleteValueForKeys(keys: List<String>) {
+        var obj: Any? = cells
+        for (i in 0 until keys.size - 1) {
+            obj = (obj as MutableMap<*, *>)[keys[i]]
+        }
+        (obj as MutableMap<String, Any>).remove(keys.last())
+
+
+        saveDb()
+    }
 
     private fun saveDb() {
         writeLock.lock()
         fileDb.delete()
         fileDb.createNewFile()
-        cells.forEach {
-            fileDb.appendText(Json.encodeToString(it))
-            fileDb.appendText("\n")
-        }
+        fileDb.writeText(parser.mapToJson(cells as Map<String, Any>))
         writeLock.unlock()
     }
 

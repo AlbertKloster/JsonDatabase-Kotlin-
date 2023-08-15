@@ -1,12 +1,10 @@
 package jsondatabase.server
 
-import jsondatabase.dto.*
+import jsondatabase.utils.Parser
 import jsondatabase.utils.RequestType
-import jsondatabase.utils.SocketConst
-import jsondatabase.utils.Utils.Companion.getData
-import kotlinx.serialization.decodeFromString
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
+import jsondatabase.Constants
+import jsondatabase.utils.Utils.Companion.getKeys
+import jsondatabase.utils.Utils.Companion.getType
 import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.net.InetAddress
@@ -14,8 +12,9 @@ import java.net.ServerSocket
 import java.util.concurrent.Executors
 
 class Server {
-    private val serverSocket = ServerSocket(SocketConst.port, 50, InetAddress.getByName(SocketConst.address))
+    private val serverSocket = ServerSocket(Constants.PORT, 50, InetAddress.getByName(Constants.ADDRESS))
     private val executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors())
+    private val parser = Parser()
     fun start() {
         println("Server started!")
         executor.submit {
@@ -23,42 +22,50 @@ class Server {
                 val accept = serverSocket.accept()
                 val input = DataInputStream(accept.getInputStream())
                 val output = DataOutputStream(accept.getOutputStream())
-                val sendBasic = Json.decodeFromString<SendBasic>(input.readUTF())
-                val (type, key, value) = getData(sendBasic)
+                val request = parser.jsonToMap(input.readUTF())
+                val type = getType(request["type"])
+                val keys = getKeys(request["key"])
+                val value = request["value"]
                 when (type) {
-                    RequestType.GET.string -> get(key, output)
-                    RequestType.SET.string -> set(key, value, output)
-                    RequestType.DELETE.string -> delete(key, output)
-                    RequestType.EXIT.string -> exit(output)
+                    RequestType.GET -> get(keys, output)
+                    RequestType.SET -> set(keys, value, output)
+                    RequestType.DELETE -> delete(keys, output)
+                    RequestType.EXIT -> exit(output)
                 }
             }
         }
     }
 
-    private fun get(key: String, output: DataOutputStream) {
-        val valueByKey = database.getValueByKey(key)
-        if (valueByKey.isNullOrEmpty())
-            output.writeUTF(Json.encodeToString(Error("ERROR", "No such key")))
-        else
-            output.writeUTF(Json.encodeToString(ResponseGet("OK", valueByKey)))
+    private fun get(keys: Collection<String>, output: DataOutputStream) {
+        try {
+            output.writeUTF(parser.mapToJson(mapOf("response" to "OK", "value" to database.getValueForKeys(keys)!!)))
+        } catch (e: RuntimeException) {
+            output.writeUTF(parser.mapToJson(mapOf("response" to "ERROR", "reason" to "No such key")))
+        }
     }
 
-    private fun set(key: String, value: String, output: DataOutputStream) {
-        database.setValueByKey(key, value)
-        output.writeUTF(Json.encodeToString(ResponseSet("OK")))
+    private fun set(keys: Collection<*>, value: Any?, output: DataOutputStream) {
+        try {
+            if (value == null) throw RuntimeException()
+            database.setValueForKeys(keys as List<String>, value)
+            output.writeUTF(parser.mapToJson(mapOf("response" to "OK")))
+        } catch (e: RuntimeException) {
+            output.writeUTF(parser.mapToJson(mapOf("response" to "ERROR", "reason" to "Wrong format")))
+        }
+
     }
 
-    private fun delete(key: String, output: DataOutputStream) {
-        if (database.containsKey(key)) {
-            database.removeByKey(key)
-            output.writeUTF(Json.encodeToString(ResponseDelete("OK")))
-        } else {
-            output.writeUTF(Json.encodeToString(Error("ERROR", "No such key")))
+    private fun delete(keys: Collection<*>, output: DataOutputStream) {
+        try {
+            database.deleteValueForKeys(keys as List<String>)
+            output.writeUTF(parser.mapToJson(mapOf("response" to "OK")))
+        } catch (e: RuntimeException) {
+            output.writeUTF(parser.mapToJson(mapOf("response" to "ERROR", "reason" to "No such key")))
         }
     }
 
     private fun exit(output: DataOutputStream) {
-        output.writeUTF(Json.encodeToString(ResponseExit("OK")))
+        output.writeUTF(parser.mapToJson(mapOf("response" to "OK")))
         executor.shutdown()
         serverSocket.close()
     }
